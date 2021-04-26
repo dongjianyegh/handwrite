@@ -33,15 +33,14 @@ import static android.opengl.GLES32.GL_VERTEX_ARRAY;
 
 
 public class HandWriteRender implements GLSurfaceView.Renderer {
-    private float alpha;
+    private float mStrokeAlpha;
     private double iGA;
     private int iGB;
     private double iGC;
     private double mSize;
     private double mDensity;
     private int mSkipPointRate;
-    private Rect iGG;
-    private jny iGH;
+    private Rect mActiveRect;
     private boolean iGI;
     private boolean mGlInited;
     private int mTextureId;
@@ -87,8 +86,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         iGz = 0.0d;
         iGA = 0.0d;
         mSkipPointRate = 1;
-        alpha = 0.8f;
-        iGH = new jny();
+        mStrokeAlpha = 0.8f;
         iGI = true;
         mMipmap = new Mipmap();
         mHandWriteView = handWriteView;
@@ -103,8 +101,8 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         mSize = d;
     }
 
-    public void A(Rect rect) {
-        iGG = rect;
+    public void setActiveRect(Rect rect) {
+        mActiveRect = rect;
     }
 
     public void setSkipPointRate(int i) {
@@ -112,16 +110,15 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
     }
 
     private boolean aD(MotionEvent motionEvent) {
-        return iGG == null || (motionEvent.getX() > ((float) iGG.left) && motionEvent.getX() < ((float) iGG.right) && motionEvent.getY() > ((float) iGG.top) && motionEvent.getY() < ((float) iGG.bottom));
+        return mActiveRect == null || (motionEvent.getX() > ((float) mActiveRect.left) && motionEvent.getX() < ((float) mActiveRect.right) && motionEvent.getY() > ((float) mActiveRect.top) && motionEvent.getY() < ((float) mActiveRect.bottom));
     }
 
-    private boolean ah(float f, float f2) {
-        Rect rect = iGG;
-        return rect == null || (f > ((float) rect.left) && f < ((float) iGG.right) && f2 > ((float) iGG.top) && f2 < ((float) iGG.bottom));
+    private boolean isInActiveRect(float x, float y) {
+        Rect rect = mActiveRect;
+        return rect == null || (x > ((float) rect.left) && x < ((float) mActiveRect.right) && y > ((float) mActiveRect.top) && y < ((float) mActiveRect.bottom));
     }
 
     public void reset() {
-        iGH.reset();
         mHandWriteTasks.add(HandWriteEraseTask.getEraseTask());
     }
 
@@ -131,9 +128,6 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
     }
 
     public void appendMotionEvent(MotionEvent motionEvent) {
-        if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
-            iGH.reset();
-        }
         MotionEvent obtain = MotionEvent.obtain(motionEvent);
         if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
             mHandWriteTasks.add(new HandWriteUpTask(obtain));
@@ -146,11 +140,8 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         mHandWriteTasks.clear();
     }
 
+    @Override
     public void onDrawFrame(GL10 gl10) {
-        int i;
-
-        iGH.start();
-        float f = 0.0f;
         // 清除屏幕颜色
         gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         // 将从窗口中清除最后一次所绘制的图形
@@ -159,9 +150,10 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
 
         gl11.glBindFramebufferOES(GL_FRAMEBUFFER, mFrameBufferId);
 
-        gl10.glMatrixMode(GL_PROJECTION);
-        gl10.glLoadIdentity();
-        createOrthof(gl10);
+        // 做个投影，貌似也没啥太大作用
+//        gl10.glMatrixMode(GL_PROJECTION);
+//        gl10.glLoadIdentity();
+//        createOrthof(gl10);
 
         gl10.glMatrixMode(GL_MODELVIEW);
 
@@ -176,6 +168,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
                 case DRAW_MOTION_EVENT_TASK: {
                     HandWriteTask poll = mHandWriteTasks.poll();
                     while (poll != null) {
+                        Log.d("HandWriteRender", "task size is " + mHandWriteTasks.size());
                         MotionEvent motionEvent = ((HandWriteMotionTask) poll).getMotionEvent();
                         if (motionEvent != null) {
                             drawMotionEvent(gl10, motionEvent);
@@ -189,21 +182,21 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
                     if (mHandWriteTasks.poll() != null) {
                         gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                         gl10.glClear(GL_COLOR_BUFFER_BIT);
-                        mMipmap.drawTriangle(gl10, 0.0f, 0.0f, 1.0f, 2);
+                        mMipmap.drawTriangleAtSpecialTexture(gl10, 0.0f, 0.0f, 1.0f, 2);
                     }
                     break;
                 }
                 case UP_MOTION_EVENT_TASK: {
                     HandWriteTask poll2 = mHandWriteTasks.poll();
                     while (poll2 != null) {
-                        MotionEvent dUk2 = ((HandWriteUpTask) poll2).getMotionEvent();
-                        if (dUk2 != null) {
-                            drawMotionEvent(gl10, dUk2);
+                        MotionEvent motionEvent = ((HandWriteUpTask) poll2).getMotionEvent();
+                        if (motionEvent != null) {
+                            drawMotionEvent(gl10, motionEvent);
                         }
                         HandWriteTask peek3 = mHandWriteTasks.peek();
                         poll2 = (peek3 == null || peek3.getTaskType() != HandWriteTaskType.UP_MOTION_EVENT_TASK) ? null : mHandWriteTasks.poll();
                     }
-                    if (((double) alpha) > 0.999d) {
+                    if (((double) mStrokeAlpha) > 0.999d) {
                         z = false;
                         continue;
                     } else {
@@ -231,7 +224,6 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
             mTextureId = mUnkownTextureId;
             mUnkownTextureId = i3;
         }
-        iGH.end();
     }
 
     private void createOrthof(GL10 gl10) {
@@ -247,7 +239,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
             gl10.glClear(GL_COLOR_BUFFER_BIT);
             iGI = false;
         }
-        mMipmap.a(gl10, mUnkownTextureId, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, alpha);
+        mMipmap.a(gl10, mUnkownTextureId, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, mStrokeAlpha);
         gL11ExtensionPack.glBindFramebufferOES(36160, mFrameBufferId);
         gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         gl10.glClear(GL_COLOR_BUFFER_BIT);
@@ -347,30 +339,27 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         a(gl10, d9, d8, d6, mDownPosition.x, mDownPosition.y, mDownPosition.gi);
     }
 
-    private void a(GL10 gl10, double d, double d2, double d3, double d4, double d5, double d6) {
-        double d7 = d4 - d;
-        double d8 = d5 - d2;
+    private void a(GL10 gl10, double x, double y, double d3, double d4, double d5, double d6) {
+        double d7 = d4 - x;
+        double d8 = d5 - y;
         double hypot = Math.hypot(d7, d8);
         float f = (float) (d7 / hypot);
         float f2 = (float) (d8 / hypot);
         float f3 = (float) ((d6 - d3) / hypot);
-        float f4 = (float) d;
-        float f5 = (float) d2;
-        float f6 = (float) d3;
         for (int i = 0; ((double) i) < hypot; i++) {
-            if (ah(f4, f5) && i % (mSkipPointRate + 1) == 0) {
-                mMipmap.drawTriangle(gl10, f4, f5, f6, 1);
+            if (isInActiveRect((float) x, (float) y) && i % (mSkipPointRate + 1) == 0) {
+                mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) d3, 1);
             }
-            f4 += f;
-            f5 += f2;
-            f6 += f3;
+            x += f;
+            y += f2;
+            d3 += f3;
         }
     }
 
     private void drawTriangle(GL10 gl10, double x, double y, double size) {
         gl10.glMatrixMode(GL_MODELVIEW);
         gl10.glLoadIdentity();
-        mMipmap.drawTriangle(gl10, (float) x, (float) y, (float) size, 2);
+        mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size, 2);
     }
 
     @Override
@@ -507,6 +496,6 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
     }
 
     public void setStrokeAlpha(float f) {
-        alpha = f;
+        mStrokeAlpha = f;
     }
 }

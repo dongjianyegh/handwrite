@@ -64,8 +64,8 @@ public class HandWriteView extends GLSurfaceView implements WriteListener {
         mHandWriteHandler.setDelayTime(j);
     }
 
-    public void setActiveRect(int i, int i2, int i3, int i4) {
-        mHandWriteRender.A(new Rect(i, i2, i3, i4));
+    public void setActiveRect(int left, int top, int right, int bottom) {
+        mHandWriteRender.setActiveRect(new Rect(left, top, right, bottom));
     }
 
     public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i2, int i3) {

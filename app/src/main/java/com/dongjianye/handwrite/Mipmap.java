@@ -69,7 +69,15 @@ public class Mipmap {
         }
     }
 
-    public void drawTriangle(GL10 gl10, float x, float y, float size, int index) {
+    /**
+     * 在指定的texture上绘制三角形
+     * @param gl10
+     * @param x
+     * @param y
+     * @param size
+     * @param index
+     */
+    public void drawTriangleAtSpecialTexture(GL10 gl10, float x, float y, float size, int index) {
         for (int i = 0; i < mVertexFloats.length; ++i) {
             mTempUnkownVertexFloats[i] = mVertexFloats[i] * size;
             if (i % 2 == 0) {
