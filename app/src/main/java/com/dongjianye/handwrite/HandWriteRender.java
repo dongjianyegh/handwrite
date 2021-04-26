@@ -28,15 +28,16 @@ import static android.opengl.GLES20.GL_BLEND;
 import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
 import static android.opengl.GLES20.GL_DITHER;
 import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.GL_TEXTURE0;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES32.GL_VERTEX_ARRAY;
 
 
 public class HandWriteRender implements GLSurfaceView.Renderer {
     private float mStrokeAlpha;
-    private double iGA;
-    private int iGB;
-    private double iGC;
+    private double mTotalMoveDistance;
+    private int mMovePointerCnt;
+    private double mCurSize;
     private double mSize;
     private double mDensity;
     private int mSkipPointRate;
@@ -45,18 +46,18 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
     private boolean mGlInited;
     private int mTextureId;
     private int mFrameBufferId;
-    private int mUnkownTextureId;
-    private int mUnkownFrameBufferId;
+    private int mAlphaTextureId; // 用来处理渐隐
+    private int mAlphaFrameBufferId;
     private int mWith;  // 纹理的宽度和高度，应该是2的幂次方
     private int mHeight;
-    private jnz iGs;
+    private SpotInfoManger mSpotInfoManger;
     private Mipmap mMipmap;
     private HandWriteView mHandWriteView;
     private ConcurrentLinkedQueue<HandWriteTask> mHandWriteTasks;
     private MotionEvent mCurMotionEvent;
-    private jnz.a mDownPosition;
-    private double iGy;
-    private double iGz;
+    private SpotInfoManger.SpotInfo mDownPosition;
+    private double mAvarageSpeed;
+    private double mCurMoveDistance;
 
     /**
      * 获取比给定value大于等于的最小的2的幂次方的值
@@ -76,15 +77,15 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
 
     public HandWriteRender(HandWriteView handWriteView) {
         mGlInited = false;
-        iGs = new jnz();
+        mSpotInfoManger = new SpotInfoManger();
         mMipmap = null;
         mHandWriteView = null;
         mHandWriteTasks = new ConcurrentLinkedQueue<>();
         mCurMotionEvent = null;
         mDownPosition = null;
-        iGy = 0.0d;
-        iGz = 0.0d;
-        iGA = 0.0d;
+        mAvarageSpeed = 0.0d;
+        mCurMoveDistance = 0.0d;
+        mTotalMoveDistance = 0.0d;
         mSkipPointRate = 1;
         mStrokeAlpha = 0.8f;
         iGI = true;
@@ -109,7 +110,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         mSkipPointRate = i;
     }
 
-    private boolean aD(MotionEvent motionEvent) {
+    private boolean isInActiveRect(MotionEvent motionEvent) {
         return mActiveRect == null || (motionEvent.getX() > ((float) mActiveRect.left) && motionEvent.getX() < ((float) mActiveRect.right) && motionEvent.getY() > ((float) mActiveRect.top) && motionEvent.getY() < ((float) mActiveRect.bottom));
     }
 
@@ -151,14 +152,14 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         gl11.glBindFramebufferOES(GL_FRAMEBUFFER, mFrameBufferId);
 
         // 做个投影，貌似也没啥太大作用
-//        gl10.glMatrixMode(GL_PROJECTION);
-//        gl10.glLoadIdentity();
-//        createOrthof(gl10);
+        gl10.glMatrixMode(GL_PROJECTION);
+        gl10.glLoadIdentity();
+        createOrthof(gl10);
 
         gl10.glMatrixMode(GL_MODELVIEW);
 
         final long currentTimeMillis = System.currentTimeMillis();
-        boolean z = false;
+        boolean hide = false;
         while (System.currentTimeMillis() - currentTimeMillis <= 10) {
             HandWriteTask peek = mHandWriteTasks.peek();
             if (peek == null) {
@@ -197,32 +198,35 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
                         poll2 = (peek3 == null || peek3.getTaskType() != HandWriteTaskType.UP_MOTION_EVENT_TASK) ? null : mHandWriteTasks.poll();
                     }
                     if (((double) mStrokeAlpha) > 0.999d) {
-                        z = false;
+                        hide = false;
                         continue;
                     } else {
                         c(gl10);
-                        z = true;
+                        hide = true;
                     }
                     break;
                 }
             }
         }
-        gl11.glBindFramebufferOES(36160, 0);
+        gl11.glBindFramebufferOES(GL_FRAMEBUFFER, 0);
         gl10.glMatrixMode(GL_PROJECTION);
         gl10.glLoadIdentity();
         createOrthof(gl10);
         gl10.glMatrixMode(GL_MODELVIEW);
         gl10.glLoadIdentity();
-        if (!z) {
-            mMipmap.a(gl10, 33984, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, 1.0f);
+        if (!hide) {
+            mMipmap.a(gl10, GL_TEXTURE0, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, 1.0f);
         } else {
-            mMipmap.a(gl10, 33984, mUnkownTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, 1.0f);
-            int i2 = mFrameBufferId;
-            mFrameBufferId = mUnkownFrameBufferId;
-            mUnkownFrameBufferId = i2;
-            int i3 = mTextureId;
-            mTextureId = mUnkownTextureId;
-            mUnkownTextureId = i3;
+
+            mMipmap.a(gl10, GL_TEXTURE0, mAlphaTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, 1.0f);
+            // 手指抬起时，交换当前的两个buffer和id，如果是需要隐藏动画的话
+            int oldBufferId = mFrameBufferId;
+            mFrameBufferId = mAlphaFrameBufferId;
+            mAlphaFrameBufferId = oldBufferId;
+
+            int oldTextureId = mTextureId;
+            mTextureId = mAlphaTextureId;
+            mAlphaTextureId = oldTextureId;
         }
     }
 
@@ -233,31 +237,28 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
 
     private void c(GL10 gl10) {
         GL11ExtensionPack gL11ExtensionPack = (GL11ExtensionPack) gl10;
-        gL11ExtensionPack.glBindFramebufferOES(36160, mUnkownFrameBufferId);
+        gL11ExtensionPack.glBindFramebufferOES(36160, mAlphaFrameBufferId);
         if (iGI) {
             gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             gl10.glClear(GL_COLOR_BUFFER_BIT);
             iGI = false;
         }
-        mMipmap.a(gl10, mUnkownTextureId, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, mStrokeAlpha);
+        mMipmap.a(gl10, mAlphaTextureId, mTextureId, mHandWriteView.getWidth(), mHandWriteView.getHeight(), mWith, mHeight, mStrokeAlpha);
         gL11ExtensionPack.glBindFramebufferOES(36160, mFrameBufferId);
         gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         gl10.glClear(GL_COLOR_BUFFER_BIT);
     }
 
     private void drawMotionEvent(GL10 gl10, MotionEvent motionEvent) {
-        MotionEvent motionEvent2;
-        double d;
         if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN || mDownPosition == null) {
-            iGC = mSize;
-            iGz = 0.0d;
-            iGA = 0.0d;
-            mDownPosition = new jnz.a();
+            mCurSize = mSize;
+            mCurMoveDistance = 0.0d;
+            mTotalMoveDistance = 0.0d;
+            mDownPosition = new SpotInfoManger.SpotInfo();
             mDownPosition.init((double) motionEvent.getX(), (double) motionEvent.getY(), mSize);
-            iGB = 0;
-            motionEvent2 = motionEvent;
-            if (aD(motionEvent2)) {
-                drawTriangle(gl10, (double) motionEvent.getX(), (double) motionEvent.getY(), mSize);
+            mMovePointerCnt = 0;
+            if (isInActiveRect(motionEvent)) {
+                drawTriangleAtTexture2(gl10, (double) motionEvent.getX(), (double) motionEvent.getY(), mSize);
             }
         } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
             double downX = mDownPosition.x;
@@ -267,33 +268,33 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
             }
             final double moveX = motionEvent.getX();
             final double moveY = motionEvent.getY();
-            final double hypot = Math.hypot((moveX - downX) / mDensity, (moveY - downY) / mDensity);
+            final double distance = Math.hypot((moveX - downX) / mDensity, (moveY - downY) / mDensity);
 
-            int i = (((int) hypot) / 10) + 1;
+            // 相邻的点要分成多少段
+            int segments = (((int) distance) / 10) + 1;
             final double eventTime = (double) (motionEvent.getEventTime() - mCurMotionEvent.getEventTime());
 
-            double d5 = hypot / eventTime;
-            double a = jnx.a(mDownPosition.x, mDownPosition.y, moveX, moveY, mSize, iGC, iGz);
-            if (iGB < 2) {
-                d = d5;
-                iGy = d;
-                iGs.a(downX, downY, iGC, motionEvent.getX(),motionEvent.getY(), a);
+            final double speed = distance / eventTime;
+            final double newSize = SizeUtils.getSize(mDownPosition.x, mDownPosition.y, moveX, moveY, mSize, mCurSize, mCurMoveDistance);
+
+            if (mMovePointerCnt < 2) {
+                mAvarageSpeed = speed;
+                mSpotInfoManger.init(downX, downY, mCurSize, motionEvent.getX(),motionEvent.getY(), newSize);
             } else {
-                d = d5;
-                iGs.b((double) motionEvent.getX(), (double) motionEvent.getY(), a);
+                mSpotInfoManger.append((double) motionEvent.getX(), (double) motionEvent.getY(), newSize);
             }
-            iGy = (iGy + d) / 2.0d;
-            iGC = a;
-            iGz = hypot;
-            iGA += iGz;
-            a(gl10, i);
+            mAvarageSpeed = (mAvarageSpeed + speed) / 2.0d;
+            mCurSize = newSize;
+            mCurMoveDistance = distance;
+            mTotalMoveDistance += mCurMoveDistance;
+            drawPointsFromOldPointToNewAtTexture1(gl10, segments);
         }
 
         if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP) {
             double d6 = mDownPosition.x;
             double d7 = mDownPosition.y;
-            if (iGA < 0.1d) {
-                drawTriangle(gl10, d6, d7, mSize);
+            if (mTotalMoveDistance < 0.1d) {
+                drawTriangleAtTexture2(gl10, d6, d7, mSize);
             } else {
                 double x2 = (double) motionEvent.getX();
                 double y2 = (double) motionEvent.getY();
@@ -302,61 +303,81 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
                 double d9 = mDensity;
                 Double.isNaN(y2);
                 int hypot2 = (((int) (Math.hypot(d8 / d9, (y2 - d7) / d9) * mDensity)) / 10) + 1;
-                iGs.b(x2, y2, 0.0d);
-                a(gl10, hypot2);
-                iGs.end();
-                a(gl10, hypot2);
+                mSpotInfoManger.append(x2, y2, 0.0d);
+                drawPointsFromOldPointToNewAtTexture1(gl10, hypot2);
+                mSpotInfoManger.end();
+                drawPointsFromOldPointToNewAtTexture1(gl10, hypot2);
             }
             mDownPosition = null;
-            iGy = 0.0d;
+            mAvarageSpeed = 0.0d;
         }
         mCurMotionEvent = motionEvent;
-        iGB++;
+        mMovePointerCnt++;
     }
 
-    private void a(GL10 gl10, int i) {
-        int min = Math.min(10, i);
-        iGs.a(mDownPosition, 0.0d);
-        double d = mDownPosition.x;
-        double d2 = mDownPosition.y;
-        double d3 = mDownPosition.gi;
-        double d4 = (double) min;
-        Double.isNaN(d4);
-        double d5 = 1.0d / d4;
-        double d6 = d3;
-        double d7 = d5;
-        double d8 = d2;
-        double d9 = d;
-        for (double d10 = 1.0d; d7 < d10; d10 = 1.0d) {
-            iGs.a(mDownPosition, d7);
-            a(gl10, d9, d8, d6, mDownPosition.x, mDownPosition.y, mDownPosition.gi);
-            d9 = mDownPosition.x;
-            d8 = mDownPosition.y;
-            d6 = mDownPosition.gi;
-            d7 += d5;
+    /**
+     * 从老点到最新的点，会最大分割程10段来绘制，这个分段是用的一个插值器，类似贝塞尔曲线
+     * @param gl10
+     * @param segments
+     */
+    private void drawPointsFromOldPointToNewAtTexture1(GL10 gl10, int segments) {
+        final int min = Math.min(10, segments);
+        mSpotInfoManger.getRatioSpot(mDownPosition, 0.0d);
+        final double x = mDownPosition.x;
+        final double y = mDownPosition.y;
+        final double size = mDownPosition.size;
+        final double d5 = 1.0d / min;
+        double tempSize = size;
+        double ratio = d5;
+        double tempY = y;
+        double tempX = x;
+        for (double d10 = 1.0d; ratio < d10; d10 = 1.0d) {
+            mSpotInfoManger.getRatioSpot(mDownPosition, ratio);
+            drawTriangleBetweenToPointAtTexture1(gl10, tempX, tempY, tempSize, mDownPosition.x, mDownPosition.y, mDownPosition.size);
+            tempX = mDownPosition.x;
+            tempY = mDownPosition.y;
+            tempSize = mDownPosition.size;
+            ratio += d5;
         }
-        iGs.a(mDownPosition, 1.0d);
-        a(gl10, d9, d8, d6, mDownPosition.x, mDownPosition.y, mDownPosition.gi);
+        mSpotInfoManger.getRatioSpot(mDownPosition, 1.0d);
+        drawTriangleBetweenToPointAtTexture1(gl10, tempX, tempY, tempSize, mDownPosition.x, mDownPosition.y, mDownPosition.size);
     }
 
-    private void a(GL10 gl10, double x, double y, double d3, double d4, double d5, double d6) {
-        double d7 = d4 - x;
-        double d8 = d5 - y;
-        double hypot = Math.hypot(d7, d8);
-        float f = (float) (d7 / hypot);
-        float f2 = (float) (d8 / hypot);
-        float f3 = (float) ((d6 - d3) / hypot);
-        for (int i = 0; ((double) i) < hypot; i++) {
+    /**
+     * 从from到to点，两点之间的连线来画点，
+     * @param gl10
+     * @param x
+     * @param y
+     * @param size
+     * @param x1
+     * @param y1
+     * @param size1
+     */
+    private void drawTriangleBetweenToPointAtTexture1(GL10 gl10, double x, double y, double size, double x1, double y1, double size1) {
+        final double oldx = x;
+        final double oldy = y;
+        final double oldszie = size;
+
+        double deltaX = x1 - x;
+        double deltaY = y1 - y;
+        double distance = Math.hypot(deltaX, deltaY);
+        float gapX = (float) (deltaX / distance);
+        float gapY = (float) (deltaY / distance);
+        float gapSize = (float) ((size1 - size) / distance);
+        for (int i = 0; ((double) i) < distance; i++) {
             if (isInActiveRect((float) x, (float) y) && i % (mSkipPointRate + 1) == 0) {
-                mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) d3, 1);
+                mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size, 1);
             }
-            x += f;
-            y += f2;
-            d3 += f3;
+
+            Log.d("HandWriteRender", String.format("drawTriangleBetweenToPointAtTexture1: [x:%f, y:%f, size:%f  x1:%f, y1:%f, size1:%f" +
+                    "] [cx:%f, cy:%f, cs:%f]", oldx, oldy, oldszie, x1, y1, size1, x, y, size));
+            x += gapX;
+            y += gapY;
+            size += gapSize;
         }
     }
 
-    private void drawTriangle(GL10 gl10, double x, double y, double size) {
+    private void drawTriangleAtTexture2(GL10 gl10, double x, double y, double size) {
         gl10.glMatrixMode(GL_MODELVIEW);
         gl10.glLoadIdentity();
         mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size, 2);
@@ -445,8 +466,8 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         mFrameBufferId = createBufferForTexture(gl10, mWith, mHeight, mTextureId);
 
         // 创建两个纹理和对应的缓冲区
-        mUnkownTextureId = genTexture(gl10, mWith, mHeight);
-        mUnkownFrameBufferId = createBufferForTexture(gl10, mWith, mHeight, mUnkownTextureId);
+        mAlphaTextureId = genTexture(gl10, mWith, mHeight);
+        mAlphaFrameBufferId = createBufferForTexture(gl10, mWith, mHeight, mAlphaTextureId);
 
         // 设置渲染窗口大小
         gl10.glViewport(0, 0, viewWidth, viewHeight);

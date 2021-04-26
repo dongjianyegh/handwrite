@@ -15,48 +15,56 @@ import java.nio.FloatBuffer;
 import javax.microedition.khronos.opengles.GL;
 import javax.microedition.khronos.opengles.GL10;
 
+import static android.opengl.GLES10.GL_MODELVIEW;
+import static android.opengl.GLES10.GL_MODULATE;
+import static android.opengl.GLES10.GL_TEXTURE_ENV;
+import static android.opengl.GLES10.GL_TEXTURE_ENV_MODE;
+import static android.opengl.GLES20.GL_REPLACE;
+import static android.opengl.GLES20.GL_TEXTURE0;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+
 
 public class Mipmap {
-    private float[] mVertexFloats = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
-    private float[] mTexCoordFloats = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
-    private float[] mUnkownVertexFloats = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+    private final float[] mVertexFloats = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
+    private final float[] mTexCoordFloats = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
+    private final float[] mAlphaVertexFloats = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};
 
-    private FloatBuffer mUnkownVertextPointers;
-    private FloatBuffer mVertexPointers; // 顶点坐标
-    private FloatBuffer mTexCoordPointers; // 纹理坐标
+    private final FloatBuffer mAlphaVertextPointers;
+    private final FloatBuffer mVertexPointers; // 顶点坐标
+    private final FloatBuffer mTexCoordPointers; // 纹理坐标
 
-    private int[] mGenTextureIds = new int[3];
-    private float[] mTempUnkownVertexFloats = new float[this.mUnkownVertexFloats.length];
-    private float[] mTempTexCoordFloats = new float[this.mTexCoordFloats.length];
+    private final int[] mGenTextureIds = new int[3];
+    private final float[] mTempAlphaVertexFloats = new float[mAlphaVertexFloats.length];
+    private final float[] mTempTexCoordFloats = new float[mTexCoordFloats.length];
     private Bitmap mBitmap;
     private int resourceId = 1;
 
     public Mipmap() {
-        ByteBuffer allocateDirect = ByteBuffer.allocateDirect(this.mUnkownVertexFloats.length * 4);
+        ByteBuffer allocateDirect = ByteBuffer.allocateDirect(mAlphaVertexFloats.length * 4);
         allocateDirect.order(ByteOrder.nativeOrder());
-        this.mUnkownVertextPointers = allocateDirect.asFloatBuffer();
-        this.mUnkownVertextPointers.put(this.mUnkownVertexFloats);
-        this.mUnkownVertextPointers.position(0);
+        mAlphaVertextPointers = allocateDirect.asFloatBuffer();
+        mAlphaVertextPointers.put(mAlphaVertexFloats);
+        mAlphaVertextPointers.position(0);
 
-        ByteBuffer allocateDirect2 = ByteBuffer.allocateDirect(this.mVertexFloats.length * 4);
+        ByteBuffer allocateDirect2 = ByteBuffer.allocateDirect(mVertexFloats.length * 4);
         allocateDirect2.order(ByteOrder.nativeOrder());
-        this.mVertexPointers = allocateDirect2.asFloatBuffer();
-        this.mVertexPointers.put(this.mVertexFloats);
-        this.mVertexPointers.position(0);
+        mVertexPointers = allocateDirect2.asFloatBuffer();
+        mVertexPointers.put(mVertexFloats);
+        mVertexPointers.position(0);
 
-        ByteBuffer allocateDirect3 = ByteBuffer.allocateDirect(this.mTexCoordFloats.length * 4);
+        ByteBuffer allocateDirect3 = ByteBuffer.allocateDirect(mTexCoordFloats.length * 4);
         allocateDirect3.order(ByteOrder.nativeOrder());
-        this.mTexCoordPointers = allocateDirect3.asFloatBuffer();
-        this.mTexCoordPointers.put(this.mTexCoordFloats);
-        this.mTexCoordPointers.position(0);
+        mTexCoordPointers = allocateDirect3.asFloatBuffer();
+        mTexCoordPointers.put(mTexCoordFloats);
+        mTexCoordPointers.position(0);
     }
 
     public void setResource(int i) {
-        this.resourceId = i;
+        resourceId = i;
     }
 
     public void setBitmap(Bitmap bitmap) {
-        this.mBitmap = bitmap;
+        mBitmap = bitmap;
     }
 
     /* access modifiers changed from: package-private */
@@ -79,83 +87,86 @@ public class Mipmap {
      */
     public void drawTriangleAtSpecialTexture(GL10 gl10, float x, float y, float size, int index) {
         for (int i = 0; i < mVertexFloats.length; ++i) {
-            mTempUnkownVertexFloats[i] = mVertexFloats[i] * size;
+            mTempAlphaVertexFloats[i] = mVertexFloats[i] * size;
             if (i % 2 == 0) {
-                mTempUnkownVertexFloats[i] = mTempUnkownVertexFloats[i] + (x - (size / 2.0f));
+                mTempAlphaVertexFloats[i] = mTempAlphaVertexFloats[i] + (x - (size / 2.0f));
             } else {
-                mTempUnkownVertexFloats[i] = mTempUnkownVertexFloats[i] + (y - (size / 2.0f));
+                mTempAlphaVertexFloats[i] = mTempAlphaVertexFloats[i] + (y - (size / 2.0f));
             }
         }
 
-        this.mVertexPointers.put(this.mTempUnkownVertexFloats);
-        this.mVertexPointers.position(0);
-        this.mTexCoordPointers.put(this.mTexCoordFloats);
-        this.mTexCoordPointers.position(0);
-        gl10.glVertexPointer(2, GL10.GL_FLOAT, 0, this.mVertexPointers);
-        gl10.glTexCoordPointer(2, GL10.GL_FLOAT, 0, this.mTexCoordPointers);
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, this.mGenTextureIds[index]);
+        Log.d("HandWriteRender", String.format("drawTriangleAtSpecialTexture: %s", getFloatArrayString(mTempAlphaVertexFloats)));
+
+        mVertexPointers.put(mTempAlphaVertexFloats);
+        mVertexPointers.position(0);
+        mTexCoordPointers.put(mTexCoordFloats);
+        mTexCoordPointers.position(0);
+        gl10.glVertexPointer(2, GL10.GL_FLOAT, 0, mVertexPointers);
+        gl10.glTexCoordPointer(2, GL10.GL_FLOAT, 0, mTexCoordPointers);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, 9987.0f);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, 9729.0f);
         gl10.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    public void a(GL10 gl10, int i, int i2, int i3, int i4, int i5, int i6, float f) {
-        int i7 = 0;
-        while (true) {
-            float[] fArr = this.mUnkownVertexFloats;
-            if (i7 >= fArr.length) {
-                break;
-            }
-            float[] fArr2 = this.mTempUnkownVertexFloats;
-            fArr2[i7] = fArr[i7];
-            if (i7 % 2 == 0) {
-                fArr2[i7] = fArr2[i7] * ((float) i3);
+    private static String getFloatArrayString(float[] array) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < array.length; ++i) {
+            if (i % 2 == 0) {
+                builder.append("(x=").append(array[i]);
             } else {
-                fArr2[i7] = fArr2[i7] * ((float) i4);
+                builder.append(",y=").append(array[i]).append(")");
             }
-            i7++;
         }
-        this.mUnkownVertextPointers.put(this.mTempUnkownVertexFloats);
-        this.mUnkownVertextPointers.position(0);
-        double d = (double) i3;
-        Double.isNaN(d);
-        double d2 = (double) i5;
-        Double.isNaN(d2);
-        float f2 = (float) ((d * 1.0d) / d2);
-        double d3 = (double) i4;
-        Double.isNaN(d3);
-        double d4 = (double) i6;
-        Double.isNaN(d4);
-        float f3 = (float) ((d3 * 1.0d) / d4);
-        int i8 = 0;
-        while (true) {
-            float[] fArr3 = this.mTexCoordFloats;
-            if (i8 >= fArr3.length) {
-                break;
-            }
-            float[] fArr4 = this.mTempTexCoordFloats;
-            fArr4[i8] = fArr3[i8];
-            if (i8 % 2 == 0) {
-                fArr4[i8] = fArr4[i8] * f2;
+
+        return builder.toString();
+    }
+
+    public void a(GL10 gl10, int textureId2, int textureId, int viewWidth, int viewHeight, int glWidth, int glHeight, float alpha) {
+        for (int i = 0; i < mAlphaVertexFloats.length; ++i) {
+            mTempAlphaVertexFloats[i] = mAlphaVertexFloats[i];
+            if (i % 2 == 0) {
+                mTempAlphaVertexFloats[i] = mTempAlphaVertexFloats[i] * ((float) viewWidth);
             } else {
-                fArr4[i8] = fArr4[i8] * f3;
+                mTempAlphaVertexFloats[i] = mTempAlphaVertexFloats[i] * ((float) viewHeight);
             }
-            i8++;
         }
-        this.mTexCoordPointers.put(this.mTempTexCoordFloats);
-        this.mTexCoordPointers.position(0);
-        gl10.glMatrixMode(5888);
+
+        Log.d("HandWriteRender", String.format("mTempAlphaVertexFloats: %s", getFloatArrayString(mTempAlphaVertexFloats)));
+
+        mAlphaVertextPointers.put(mTempAlphaVertexFloats);
+        mAlphaVertextPointers.position(0);
+        
+        final float ratioX = (float) ((viewWidth * 1.0d) / glWidth);
+        final float ratioY = (float) ((viewHeight * 1.0d) / glHeight);
+        
+        for (int i = 0; i < mTexCoordFloats.length; ++i) {
+            mTempTexCoordFloats[i] = mTexCoordFloats[i];
+            if (i % 2 == 0) {
+                mTempTexCoordFloats[i] = mTempTexCoordFloats[i] * ratioX;
+            } else {
+                mTempTexCoordFloats[i] = mTempTexCoordFloats[i] * ratioY;
+            }
+        }
+
+        Log.d("HandWriteRender", String.format("mTempTexCoordFloats: %s", getFloatArrayString(mTempTexCoordFloats)));
+
+        mTexCoordPointers.put(mTempTexCoordFloats);
+        mTexCoordPointers.position(0);
+
+        gl10.glMatrixMode(GL_MODELVIEW);
         gl10.glLoadIdentity();
-        if (i == 33984) {
-            gl10.glTexEnvx(8960, 8704, 7681);
+
+        if (textureId2 == GL_TEXTURE0) {
+            gl10.glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
         } else {
-            gl10.glColor4f(f, f, f, f);
-            gl10.glTexEnvx(8960, 8704, 8448);
+            gl10.glColor4f(alpha, alpha, alpha, alpha);
+            gl10.glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         }
-        gl10.glBindTexture(3553, i2);
-        gl10.glVertexPointer(2, 5126, 0, this.mUnkownVertextPointers);
-        gl10.glTexCoordPointer(2, 5126, 0, this.mTexCoordPointers);
-        gl10.glDrawArrays(5, 0, 4);
+        gl10.glBindTexture(GL_TEXTURE_2D, textureId);
+        gl10.glVertexPointer(2, GL10.GL_FLOAT, 0, mAlphaVertextPointers);
+        gl10.glTexCoordPointer(2, GL10.GL_FLOAT, 0, mTexCoordPointers);
+        gl10.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 0, 4);
     }
 
     /**
@@ -164,8 +175,8 @@ public class Mipmap {
      * @param context
      */
     public void init(GL10 gl10, Context context) {
-        gl10.glGenTextures(3, this.mGenTextureIds, 0);
-        Bitmap bitmap = this.mBitmap;
+        gl10.glGenTextures(3, mGenTextureIds, 0);
+        Bitmap bitmap = mBitmap;
         if (bitmap != null) {
             buildMipmapFromBitmap(gl10, bitmap);
         } else {
@@ -174,7 +185,7 @@ public class Mipmap {
     }
 
     private void buildMipmapFromResource(GL10 gl10, Context context) {
-        Bitmap decodeStream = BitmapFactory.decodeStream(context.getResources().openRawResource(this.resourceId));
+        Bitmap decodeStream = BitmapFactory.decodeStream(context.getResources().openRawResource(resourceId));
         buildMipmap(1, decodeStream, gl10);
         buildMipmap(2, decodeStream, gl10);
         decodeStream.recycle();
@@ -188,7 +199,7 @@ public class Mipmap {
     private void buildMipmap(int index, Bitmap bitmap, GL10 gl10) {
         Bitmap createBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         new Canvas(createBitmap).drawBitmap(bitmap, 0.0f, 0.0f, new Paint());
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, this.mGenTextureIds[index]);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR_MIPMAP_LINEAR);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
         buildMipmap(index, gl10, createBitmap);
@@ -205,7 +216,7 @@ public class Mipmap {
     private void buildMipmap(int index, GL10 gl10, Bitmap bitmap) {
         int height = bitmap.getHeight();
         int width = bitmap.getWidth();
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, this.mGenTextureIds[index]);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
         int level = 0;
         while (height >= 1 && width >= 1) {
             GLUtils.texImage2D(GL10.GL_TEXTURE_2D, level, bitmap, 0);

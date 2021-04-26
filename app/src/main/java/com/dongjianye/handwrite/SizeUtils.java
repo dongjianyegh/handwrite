@@ -1,9 +1,11 @@
 package com.dongjianye.handwrite;
 
 
-public class jnx {
-    private static double a(double d, double d2, double d3, double d4, double d5, double d6, double d7, double d8, double d9, double d10, double d11, double d12, double d13, double d14) {
-        double hypot = (Math.hypot(d3 - d, d4 - d2) * 0.3d) + (0.7d * d14);
+public class SizeUtils {
+    private static double getSize(double oldX, double oldY, double newX, double newY,
+                                  double d5, double d6, double d7, double d8, double d9, double d10, double d11,
+                                  double d12, double d13, double distance) {
+        double hypot = (Math.hypot(newX - oldX, newY - oldY) * 0.3d) + (0.7d * distance);
         double d15 = d5 * hypot;
         if (d6 < d15) {
             d15 = d6;
@@ -29,7 +31,7 @@ public class jnx {
         return ((d19 * d7) + 1.0d) * d13;
     }
 
-    public static double a(double d, double d2, double d3, double d4, double d5, double d6, double d7) {
-        return a(d, d2, d3, d4, 0.05d, 0.5d, 0.5d, 1.0d, 1.0d, 120.0d, 0.25d, d5, d6, d7);
+    public static double getSize(double oldX, double oldY, double newX, double newY, double d5, double d6, double distance) {
+        return getSize(oldX, oldY, newX, newY, 0.05d, 0.5d, 0.5d, 1.0d, 1.0d, 120.0d, 0.25d, d5, d6, distance);
     }
 }
