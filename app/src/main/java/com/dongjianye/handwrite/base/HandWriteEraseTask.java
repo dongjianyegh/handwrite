@@ -1,4 +1,4 @@
-package com.dongjianye.handwrite;
+package com.dongjianye.handwrite.base;
 
 
 public class HandWriteEraseTask extends HandWriteTask {

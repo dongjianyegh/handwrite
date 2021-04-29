@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.opengl.GLES20;
+import android.opengl.GLException;
 import android.opengl.GLUtils;
 import android.util.Log;
 
@@ -33,7 +35,7 @@ public class Mipmap {
     private final FloatBuffer mVertexPointers; // 顶点坐标
     private final FloatBuffer mTexCoordPointers; // 纹理坐标
 
-    private final int[] mGenTextureIds = new int[3];
+    private final int[] mGenTextureIds = new int[1];
     private final float[] mTempAlphaVertexFloats = new float[mAlphaVertexFloats.length];
     private final float[] mTempTexCoordFloats = new float[mTexCoordFloats.length];
     private Bitmap mBitmap;
@@ -85,7 +87,7 @@ public class Mipmap {
      * @param size
      * @param index
      */
-    public void drawTriangleAtSpecialTexture(GL10 gl10, float x, float y, float size, int index) {
+    public void drawTriangleAtSpecialTexture(GL10 gl10, float x, float y, float size) {
         for (int i = 0; i < mVertexFloats.length; ++i) {
             mTempAlphaVertexFloats[i] = mVertexFloats[i] * size;
             if (i % 2 == 0) {
@@ -103,7 +105,7 @@ public class Mipmap {
         mTexCoordPointers.position(0);
         gl10.glVertexPointer(2, GL10.GL_FLOAT, 0, mVertexPointers);
         gl10.glTexCoordPointer(2, GL10.GL_FLOAT, 0, mTexCoordPointers);
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[0]);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, 9987.0f);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, 9729.0f);
         gl10.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 0, 4);
@@ -175,7 +177,7 @@ public class Mipmap {
      * @param context
      */
     public void init(GL10 gl10, Context context) {
-        gl10.glGenTextures(3, mGenTextureIds, 0);
+        gl10.glGenTextures(1, mGenTextureIds, 0);
         Bitmap bitmap = mBitmap;
         if (bitmap != null) {
             buildMipmapFromBitmap(gl10, bitmap);
@@ -186,23 +188,23 @@ public class Mipmap {
 
     private void buildMipmapFromResource(GL10 gl10, Context context) {
         Bitmap decodeStream = BitmapFactory.decodeStream(context.getResources().openRawResource(resourceId));
-        buildMipmap(1, decodeStream, gl10);
-        buildMipmap(2, decodeStream, gl10);
+        buildMipmap(decodeStream, gl10);
         decodeStream.recycle();
     }
 
     private void buildMipmapFromBitmap(GL10 gl10, Bitmap bitmap) {
-        buildMipmap(1, bitmap, gl10);
-        buildMipmap(2, bitmap, gl10);
+        buildMipmap(bitmap, gl10);
     }
 
-    private void buildMipmap(int index, Bitmap bitmap, GL10 gl10) {
+    private void buildMipmap(Bitmap bitmap, GL10 gl10) {
         Bitmap createBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         new Canvas(createBitmap).drawBitmap(bitmap, 0.0f, 0.0f, new Paint());
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[0]);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR_MIPMAP_LINEAR);
         gl10.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
-        buildMipmap(index, gl10, createBitmap);
+        gl10.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        gl10.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        buildMipmap(gl10, createBitmap);
         checkGlError(gl10);
         createBitmap.recycle();
     }
@@ -213,10 +215,10 @@ public class Mipmap {
      * @param gl10
      * @param bitmap
      */
-    private void buildMipmap(int index, GL10 gl10, Bitmap bitmap) {
+    private void buildMipmap(GL10 gl10, Bitmap bitmap) {
         int height = bitmap.getHeight();
         int width = bitmap.getWidth();
-        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[index]);
+        gl10.glBindTexture(GL10.GL_TEXTURE_2D, mGenTextureIds[0]);
         int level = 0;
         while (height >= 1 && width >= 1) {
             GLUtils.texImage2D(GL10.GL_TEXTURE_2D, level, bitmap, 0);

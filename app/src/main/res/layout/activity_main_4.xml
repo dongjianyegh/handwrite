@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.dongjianye.handwrite.HandWriteView
+    <View
         android:id="@+id/hand_write_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

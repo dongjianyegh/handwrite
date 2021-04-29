@@ -6,6 +6,12 @@ import android.opengl.GLSurfaceView;
 import android.util.Log;
 import android.view.MotionEvent;
 
+import com.dongjianye.handwrite.base.HandWriteEraseTask;
+import com.dongjianye.handwrite.base.HandWriteMotionTask;
+import com.dongjianye.handwrite.base.HandWriteTask;
+import com.dongjianye.handwrite.base.HandWriteTaskType;
+import com.dongjianye.handwrite.base.HandWriteUpTask;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -183,7 +189,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
                     if (mHandWriteTasks.poll() != null) {
                         gl10.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                         gl10.glClear(GL_COLOR_BUFFER_BIT);
-                        mMipmap.drawTriangleAtSpecialTexture(gl10, 0.0f, 0.0f, 1.0f, 2);
+                        mMipmap.drawTriangleAtSpecialTexture(gl10, 0.0f, 0.0f, 1.0f);
                     }
                     break;
                 }
@@ -366,7 +372,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
         float gapSize = (float) ((size1 - size) / distance);
         for (int i = 0; ((double) i) < distance; i++) {
             if (isInActiveRect((float) x, (float) y) && i % (mSkipPointRate + 1) == 0) {
-                mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size, 1);
+                mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size);
             }
 
             Log.d("HandWriteRender", String.format("drawTriangleBetweenToPointAtTexture1: [x:%f, y:%f, size:%f  x1:%f, y1:%f, size1:%f" +
@@ -380,7 +386,7 @@ public class HandWriteRender implements GLSurfaceView.Renderer {
     private void drawTriangleAtTexture2(GL10 gl10, double x, double y, double size) {
         gl10.glMatrixMode(GL_MODELVIEW);
         gl10.glLoadIdentity();
-        mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size, 2);
+        mMipmap.drawTriangleAtSpecialTexture(gl10, (float) x, (float) y, (float) size);
     }
 
     @Override
