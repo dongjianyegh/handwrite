@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/container"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/remove"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:text="REMOVE"
+        />
+
+    <ImageView
+        android:id="@+id/get_bitmap"
+        android:layout_marginLeft="80dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="#330000ff"
+        />
+
+    <TextView
+        android:id="@+id/add"
+        android:layout_marginTop="50dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ADD"
+        />
+
+    <com.dongjianye.handwrite.surfacerender.HandWriteSurfaceView
+        android:id="@+id/hand_write_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="100dp"
+        android:background="#FFFF0000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+</FrameLayout>

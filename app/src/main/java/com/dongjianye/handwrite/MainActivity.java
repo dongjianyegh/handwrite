@@ -11,21 +11,26 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.ImageView;
 
 import com.dongjianye.handwrite.airhockey.AirHockeyRender;
 import com.dongjianye.handwrite.myrender.MyHandWriteView;
+import com.dongjianye.handwrite.surfacerender.HandWriteSurfaceView;
 
 public class MainActivity extends AppCompatActivity {
 
     private HandWriteView mHandWriteView;
     private AirHockeyRender mAirRender;
+    private HandWriteSurfaceView mSurfaceView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        final int type = 0;
+        final int type = 4;
 
         if (type == 0) {
             setContentView(R.layout.activity_main);
@@ -75,6 +80,34 @@ public class MainActivity extends AppCompatActivity {
             setContentView(R.layout.activity_main_3);
         } else if (type == 3) {
             setContentView(R.layout.activity_main_4);
+        } else if (type == 4) {
+            setContentView(R.layout.activity_main_5);
+
+            mSurfaceView = findViewById(R.id.hand_write_view);
+
+            findViewById(R.id.remove).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    for (int i = 0; i < 100; i++) {
+                        ((ViewGroup) findViewById(R.id.container)).removeView(mSurfaceView);
+                        ((ViewGroup)findViewById(R.id.container)).addView(mSurfaceView);
+                    }
+                }
+            });
+
+            findViewById(R.id.add).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ((ViewGroup)findViewById(R.id.container)).addView(mSurfaceView);
+                }
+            });
+
+            findViewById(R.id.get_bitmap).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ((ImageView)findViewById(R.id.get_bitmap)).setImageBitmap(mSurfaceView.getCacheBitmap());
+                }
+            });
         }
     }
 }

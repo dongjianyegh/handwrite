@@ -185,8 +185,8 @@ public class MyHandWriteRender implements GLSurfaceView.Renderer {
         drawTriangleAtSpecialTexture(gl, 300, 200, 200);
         drawTriangleAtSpecialTexture(gl, 0, 200, 40);
 
-//        final long currentTimeMillis = System.currentTimeMillis();
-//        boolean hide = false;
+        final long currentTimeMillis = System.currentTimeMillis();
+        boolean hide = false;
 //        while (System.currentTimeMillis() - currentTimeMillis <= 10) {
 //            HandWriteTask peek = mHandWriteTasks.peek();
 //            if (peek == null) {
